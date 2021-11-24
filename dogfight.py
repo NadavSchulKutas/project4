@@ -213,7 +213,8 @@ class Ship(MovingBody):
     ACCELERATION   = 0.05
     MAX_SPEED      = 2.0
 
-    def __init__(self,world):
+    def __init__(self,world, player_one=True):
+        self.player_one = player_one
         position0    = Point2D()
         velocity0    = Vector2D(0.0,0.0)
         MovingBody.__init__(self,position0,velocity0,world)
@@ -222,7 +223,10 @@ class Ship(MovingBody):
         self.impulse = 0
 
     def color(self):
-        return "#F0C080"
+        if self.player_one:
+            return "#f74830" #Player one is red
+        else:
+            return "#3090f7" #Player two is blue
 
     def get_heading(self):
         angle = self.angle * math.pi / 180.0
@@ -237,7 +241,7 @@ class Ship(MovingBody):
     def speed_up(self):
         self.impulse = self.IMPULSE_FRAMES
 
-    def shoot(self):
+    def shoot(self): '''If need be, we can add self.player_one to the variables given to photon and then add code to it so that photons don't hit the player that created them '''
         Photon(self, self.world)
 
     def shape(self):
@@ -280,21 +284,33 @@ class PlayAsteroids(Game):
         self.before_start_ticks = self.DELAY_START
         self.started = False
 
-        self.ship = Ship(self)
+        self.ship_one = Ship(self, player_one=True)
+        self.ship_two = Ship(self, player_one=False)
 
     def max_asteroids(self):
         return min(2 + self.level,self.MAX_ASTEROIDS)
 
     def handle_keypress(self,event):
         Game.handle_keypress(self,event)
-        if event.char == 'i':
-            self.ship.speed_up()
-        elif event.char == 'j':
-            self.ship.turn_left()
+
+        '''Player One controls: wasd + c to shoot '''
+        if event.char == 'w':
+            self.ship_one.speed_up()
+        elif event.char == 'a':
+            self.ship_one.turn_left()
+        elif event.char == 'd':
+            self.ship_one.turn_right()
+        if event.char == 'c':
+            self.ship_one.shoot()
+        '''Player Two controls: pl;' + , to shoot '''
+        if event.char == 'p':
+            self.ship_two.speed_up()
         elif event.char == 'l':
-            self.ship.turn_right()
-        elif event.char == ' ':
-            self.ship.shoot()
+            self.ship_two.turn_left()
+        elif event.char == '\'':
+            self.ship_two.turn_right()
+        if event.char == ',':
+            self.ship_two.shoot()
 
     def update(self):
 
