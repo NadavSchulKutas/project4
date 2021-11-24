@@ -45,14 +45,17 @@ class Shootable(MovingBody):
         self.radius = radius
         MovingBody.__init__(self, position0, velocity0, world)
 
-    def is_hit_by(self, photon): '''is the vector between the photon and the asteroid center smaller than the asteroid radius? Basically, is the photon inside the asteroid?'''
+    def is_hit_by(self, photon):
+        '''is the vector between the photon and the asteroid center smaller than the asteroid radius? Basically, is the photon inside the asteroid?'''
         return ((self.position - photon.position).magnitude() < self.radius)
 
     def explode(self):
         self.world.score += self.WORTH
-        if self.SHRAPNEL_CLASS == None: '''Return None if the object doesn't create shrapnel when destroyed'''
+        if self.SHRAPNEL_CLASS == None:
+            '''Return None if the object doesn't create shrapnel when destroyed'''
             return
-        for _ in range(self.SHRAPNEL_PIECES): '''Otherwise, make objects in the object's shrapnel class at its position SHRAPNEL_PIECES number of times'''
+        for _ in range(self.SHRAPNEL_PIECES):
+            '''Otherwise, make objects in the object's shrapnel class at its position SHRAPNEL_PIECES number of times'''
             self.SHRAPNEL_CLASS(self.position,self.world)
         self.leave()
 
@@ -113,7 +116,8 @@ class ParentAsteroid(Asteroid):
         Asteroid.explode(self)
         self.world.number_of_asteroids -= 1
 
-class Ember(MovingBody): '''Little sparks that come off when an asteroid is destroyed'''
+class Ember(MovingBody):
+    '''Little sparks that come off when an asteroid is destroyed'''
     INITIAL_SPEED = 2.0
     SLOWDOWN      = 0.2
     TOO_SLOW      = INITIAL_SPEED / 20.0
@@ -182,7 +186,8 @@ class LargeAsteroid(ParentAsteroid):
 
 '''I don't know how useful the asteroid code is to us, but it's written so that there isn't any code that's needlessly repeated. The asteroid and shootable classes handle almost everything, while the child classes just specify the color, shrapnel pieces, and type of shrapnel. IDK how feasible it would be, but we could try to implement something similar with either powerups or with the photons our players will shoot (assuming that some powerups will change how the photons act) '''
 
-class Photon(MovingBody): '''Projectiles that the player shoots out'''
+class Photon(MovingBody):
+    '''Projectiles that the player shoots out'''
     INITIAL_SPEED = 2.0 * SmallAsteroid.MAX_SPEED
     LIFETIME      = 40
 
@@ -213,9 +218,14 @@ class Ship(MovingBody):
     ACCELERATION   = 0.05
     MAX_SPEED      = 2.0
 
+    START_X   = 5
+    START_Y   = 5
+
     def __init__(self,world, player_one=True):
         self.player_one = player_one
-        position0    = Point2D()
+        xoffset = -self.START_X if player_one else  self.START_X
+        yoffset =  self.START_Y if player_one else -self.START_Y
+        position0    = Point2D(xoffset, yoffset)
         velocity0    = Vector2D(0.0,0.0)
         MovingBody.__init__(self,position0,velocity0,world)
         self.speed   = 0.0
@@ -241,7 +251,8 @@ class Ship(MovingBody):
     def speed_up(self):
         self.impulse = self.IMPULSE_FRAMES
 
-    def shoot(self): '''If need be, we can add self.player_one to the variables given to photon and then add code to it so that photons don't hit the player that created them '''
+    def shoot(self):
+        '''If need be, we can add self.player_one to the variables given to photon and then add code to it so that photons don't hit the player that created them '''
         Photon(self, self.world)
 
     def shape(self):
@@ -265,7 +276,6 @@ class Ship(MovingBody):
         if m > self.MAX_SPEED:
             self.velocity = self.velocity * (self.MAX_SPEED / m)
             self.impulse = 0
-'''We should implement some of the pong code to add the second player. '''
 
 class PlayAsteroids(Game):
 
@@ -296,16 +306,17 @@ class PlayAsteroids(Game):
         '''Player One controls: wasd + c to shoot '''
         if event.char == 'w':
             self.ship_one.speed_up()
-        elif event.char == 'a':
+        if event.char == 'a':
             self.ship_one.turn_left()
         elif event.char == 'd':
             self.ship_one.turn_right()
         if event.char == 'c':
             self.ship_one.shoot()
+
         '''Player Two controls: pl;' + , to shoot '''
         if event.char == 'p':
             self.ship_two.speed_up()
-        elif event.char == 'l':
+        if event.char == 'l':
             self.ship_two.turn_left()
         elif event.char == '\'':
             self.ship_two.turn_right()
@@ -330,7 +341,7 @@ class PlayAsteroids(Game):
         Game.update(self)
 
 
-print("Hit j and l to turn, i to create thrust, and SPACE to shoot. Press q to quit.")
+print("Player one (red): Press a and d to turn, w to create thrust, and c to shoot. \nPlayer two (blue): Press l and \' to turn, p to create thrust, and COMMA to shoot. \nPress q to quit.")
 game = PlayAsteroids()
 while not game.GAME_OVER:
     time.sleep(1.0/60.0)
