@@ -3,9 +3,16 @@
 * Destroying the opponent scores you one point.
 * The game is over once one player reaches a certain number of points (easy to adjust)
 
+### Things to Add:
+* Hit detection
+* Delay between shots
+* Shooting gives a couple i-frames
+
+### Code "Features":
+* No cap on acceleration (ignore for now)
+
 ### Proposed Ideas:
 * 11 points to win
-* Winning a point ends the "round", putting both players in their starting position
 * Maybe include some obstacles in the environment that block players/their shots.
   * If included, we could have a pool of level layouts with a random wone being chosen every round.
 * Power-ups randomly spawn. Aquired power-ups are kept between rounds.
