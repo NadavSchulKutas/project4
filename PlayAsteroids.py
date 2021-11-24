@@ -8,7 +8,7 @@ import time
 TIME_STEP = 0.5
 
 class MovingBody(Agent):
-
+    '''Parent class for anything that moves. Pretty sure these are all just default values in case the child class doesn't specify any of them.'''
     def __init__(self, p0, v0, world):
         self.velocity = v0
         self.accel    = Vector2D(0.0,0.0)
@@ -18,9 +18,9 @@ class MovingBody(Agent):
         return "#000080"
 
     def shape(self):
-        p1 = self.position + Vector2D( 0.125, 0.125)       
-        p2 = self.position + Vector2D(-0.125, 0.125)        
-        p3 = self.position + Vector2D(-0.125,-0.125)        
+        p1 = self.position + Vector2D( 0.125, 0.125)
+        p2 = self.position + Vector2D(-0.125, 0.125)
+        p3 = self.position + Vector2D(-0.125,-0.125)
         p4 = self.position + Vector2D( 0.125,-0.125)
         return [p1,p2,p3,p4]
 
@@ -34,7 +34,7 @@ class MovingBody(Agent):
         self.world.trim(self)
 
 class Shootable(MovingBody):
-
+    '''Parent class for anything that can be shot'''
     SHRAPNEL_CLASS  = None
     SHRAPNEL_PIECES = 0
     WORTH           = 1
@@ -43,14 +43,14 @@ class Shootable(MovingBody):
         self.radius = radius
         MovingBody.__init__(self, position0, velocity0, world)
 
-    def is_hit_by(self, photon):
+    def is_hit_by(self, photon): '''is the vector between the photon and the asteroid center smaller than the asteroid radius? Basically, is the photon inside the asteroid?'''
         return ((self.position - photon.position).magnitude() < self.radius)
 
     def explode(self):
         self.world.score += self.WORTH
-        if self.SHRAPNEL_CLASS == None:
+        if self.SHRAPNEL_CLASS == None: '''Return None if the object doesn't create shrapnel when destroyed'''
             return
-        for _ in range(self.SHRAPNEL_PIECES):
+        for _ in range(self.SHRAPNEL_PIECES): '''Otherwise, make objects in the object's shrapnel class at its position SHRAPNEL_PIECES number of times'''
             self.SHRAPNEL_CLASS(self.position,self.world)
         self.leave()
 
@@ -65,8 +65,8 @@ class Asteroid(Shootable):
         self.make_shape()
 
     def choose_velocity(self):
-        return Vector2D.random() * random.uniform(self.MIN_SPEED,self.MAX_SPEED) 
-        
+        return Vector2D.random() * random.uniform(self.MIN_SPEED,self.MAX_SPEED)
+
     def make_shape(self):
         angle = 0.0
         dA = 2.0 * math.pi / 15.0
@@ -111,7 +111,7 @@ class ParentAsteroid(Asteroid):
         Asteroid.explode(self)
         self.world.number_of_asteroids -= 1
 
-class Ember(MovingBody):
+class Ember(MovingBody): '''Little sparks that come off when an asteroid is destroyed'''
     INITIAL_SPEED = 2.0
     SLOWDOWN      = 0.2
     TOO_SLOW      = INITIAL_SPEED / 20.0
@@ -178,7 +178,9 @@ class LargeAsteroid(ParentAsteroid):
     def color(self):
         return "#9890A0"
 
-class Photon(MovingBody):
+'''I don't know how useful the asteroid code is to us, but it's written so that there isn't any code that's needlessly repeated. The asteroid and shootable classes handle almost everything, while the child classes just specify the color, shrapnel pieces, and type of shrapnel. IDK how feasible it would be, but we could try to implement something similar with either powerups or with the photons our players will shoot (assuming that some powerups will change how the photons act) '''
+
+class Photon(MovingBody): '''Projectiles that the player shoots out'''
     INITIAL_SPEED = 2.0 * SmallAsteroid.MAX_SPEED
     LIFETIME      = 40
 
@@ -223,7 +225,7 @@ class Ship(MovingBody):
     def get_heading(self):
         angle = self.angle * math.pi / 180.0
         return Vector2D(math.cos(angle), math.sin(angle))
-        
+
     def turn_left(self):
         self.angle += 360.0 / self.TURNS_IN_360
 
@@ -235,7 +237,7 @@ class Ship(MovingBody):
 
     def shoot(self):
         Photon(self, self.world)
-    
+
     def shape(self):
         h  = self.get_heading()
         hp = h.perp()
@@ -257,13 +259,14 @@ class Ship(MovingBody):
         if m > self.MAX_SPEED:
             self.velocity = self.velocity * (self.MAX_SPEED / m)
             self.impulse = 0
+'''We should implement some of the pong code to add the second player. '''
 
 class PlayAsteroids(Game):
 
     DELAY_START      = 150
     MAX_ASTEROIDS    = 6
     INTRODUCE_CHANCE = 0.01
-    
+
     def __init__(self):
         Game.__init__(self,"ASTEROIDS!!!",60.0,45.0,800,600,topology='wrapped')
 
@@ -290,7 +293,7 @@ class PlayAsteroids(Game):
             self.ship.turn_right()
         elif event.char == ' ':
             self.ship.shoot()
-        
+
     def update(self):
 
         # Are we waiting to toss asteroids out?
@@ -298,7 +301,7 @@ class PlayAsteroids(Game):
             self.before_start_ticks -= 1
         else:
             self.started = True
-        
+
         # Should we toss a new asteroid out?
         if self.started:
             tense = (self.number_of_asteroids >= self.max_asteroids())
@@ -307,7 +310,7 @@ class PlayAsteroids(Game):
                 LargeAsteroid(self)
 
         Game.update(self)
-        
+
 
 print("Hit j and l to turn, i to create thrust, and SPACE to shoot. Press q to quit.")
 game = PlayAsteroids()
