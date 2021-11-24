@@ -1,8 +1,3 @@
-### Finalized Ideas:
-* Two players each control a ship and fight each other. 
-* Destroying the opponent scores you one point.
-* The game is over once one player reaches a certain number of points (easy to adjust)
-
 ### Things to Add:
 * Hit detection
 * Delay between shots
@@ -10,6 +5,11 @@
 
 ### Code "Features":
 * No cap on acceleration (ignore for now)
+
+### Finalized Ideas:
+* Two players each control a ship and fight each other. 
+* Destroying the opponent scores you one point.
+* The game is over once one player reaches a certain number of points (easy to adjust)
 
 ### Proposed Ideas:
 * 11 points to win
