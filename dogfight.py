@@ -46,20 +46,29 @@ class Shootable(MovingBody):
         MovingBody.__init__(self, position0, velocity0, world)
 
     def is_hit_by(self, photon):
-        '''is the vector between the photon and the asteroid center smaller than the asteroid radius? Basically, is the photon inside the asteroid?'''
-        if self.shotTimer > (self.shootDelay - self.iFrames): #Never get hit if you have i-frames
+        if self.shotTimer > (self.shootDelay - self.iFrames): #Never get hit if you have i-frames or are the player who fired
+            #print("dodged!") #Debugging
             return False
+        '''Version where players could not shoot themselves
+        if photon.player_one == self.player_one or self.shotTimer > (self.shootDelay - self.iFrames): #Never get hit if you have i-frames or are the player who fired
+            #print("dodged!") #Debugging
+            return False'''
         return ((self.position - photon.position).magnitude() < self.radius)
 
     def explode(self):
         self.world.score += self.WORTH
-        if self.SHRAPNEL_CLASS == None:
-            '''Return None if the object doesn't create shrapnel when destroyed'''
-            return
-        for _ in range(self.SHRAPNEL_PIECES):
-            '''Otherwise, make objects in the object's shrapnel class at its position SHRAPNEL_PIECES number of times'''
-            self.SHRAPNEL_CLASS(self.position,self.world)
-        self.leave()
+        self.hp -= 1
+        if self.hp > 0: #If the shot doesn't kill, create half the normal number of shrapnel (embers for ships, nothing for asteroids since they only have 1 hp)
+            for x in range(self.SHRAPNEL_PIECES // 2):
+                self.SHRAPNEL_CLASS(self.position,self.world)
+        else:
+            if self.SHRAPNEL_CLASS == None:
+                '''Return None if the object doesn't create shrapnel when destroyed'''
+                return
+            for x in range(self.SHRAPNEL_PIECES):
+                '''Otherwise, make objects in the object's shrapnel class at its position SHRAPNEL_PIECES number of times'''
+                self.SHRAPNEL_CLASS(self.position,self.world)
+            self.leave()
 
 class Ember(MovingBody):
     '''Little sparks that come off when an asteroid is destroyed'''
@@ -92,16 +101,20 @@ class Ember(MovingBody):
 
 class Photon(MovingBody):
     '''Projectiles that the player shoots out'''
-    INITIAL_SPEED = 1.2 #Originally "2.0 * SmallAsteroid.MAX_SPEED", I removed the dependence on the asteroid classes, which we're going to remove later
+    INITIAL_SPEED = 2.6
     LIFETIME      = 70 #Measured in tics, not distance travelled
 
-    def __init__(self,source,world):
+    def __init__(self,source,world, player_one):
+        self.player_one = player_one
         self.age  = 0
-        v0 = source.velocity + (source.get_heading() * self.INITIAL_SPEED) #Photons currently inherit the player's momentum. When testing the game, we should try having a version where photons don't do this
+        v0 = source.get_heading() * self.INITIAL_SPEED
+        '''v0 = source.velocity + (source.get_heading() * self.INITIAL_SPEED) #Photons inherit the player's momentum. When testing the game, we should try having a version where photons don't do this'''
         MovingBody.__init__(self, source.position, v0, world)
 
     def color(self):
-        return "#8080FF"
+        if self.player_one: #Player one is red
+            return "#ffaaa1"
+        return "#bcdcff"
 
     def update(self):
         MovingBody.update(self)
@@ -118,7 +131,7 @@ class Photon(MovingBody):
 
 class Ship(Shootable):
     SHRAPNEL_CLASS  = Ember
-    SHRAPNEL_PIECES = 4
+    SHRAPNEL_PIECES = 8
     WORTH           = 1
 
     TURNS_IN_360   = 12
@@ -129,12 +142,14 @@ class Ship(Shootable):
     START_X   = 5
     START_Y   = 5
 
-    iFrames = 3 #Number of i-frames given to player after a shot. Meant to be used with something like "if self.shotTimer > (self.shootDelay - self.iFrames):"
+    iFrames = 10 #Number of i-frames given to player after a shot. Meant to be used with something like "if self.shotTimer > (self.shootDelay - self.iFrames):"
     shootDelay = 20 #Delay between shots
+    hpMax = 5 #Max health. Getting shot removes 1 health
 
     def __init__(self, world, player_one):
         self.player_one = player_one
         self.shotTimer = 0 #Players can shoot immediately after spawning
+        self.hp = self.hpMax
         xoffset = -self.START_X if player_one else  self.START_X
         yoffset =  self.START_Y if player_one else -self.START_Y
         position0    = Point2D(xoffset, yoffset)
@@ -171,8 +186,9 @@ class Ship(Shootable):
 
     def shoot(self):
         '''If need be, we can add self.player_one to the variables given to photon and then add code to it so that photons don't hit the player that created them '''
-        Photon(self, self.world)
-        self.shotTimer = self.shootDelay
+        if self.shotTimer == 0: #Prevent shooting too frequently
+            Photon(self, self.world, self.player_one)
+            self.shotTimer = self.shootDelay
 
     def update(self):
         if self.shotTimer > 0:
@@ -180,11 +196,12 @@ class Ship(Shootable):
         super().update()
 
     def shape(self):
+        scale = 1.25 #Scale ship size
         h  = self.get_heading()
-        hp = h.perp()
-        p1 = self.position + h * 1.5 #making ships a little longer
-        p2 = self.position + hp * 0.5
-        p3 = self.position - hp * 0.5
+        hperp = h.perp()
+        p1 = self.position + h * 1.5 * scale #making ships a little longer
+        p2 = self.position + hperp * .5 * scale
+        p3 = self.position - hperp * .5 * scale
         return [p1,p2,p3]
 
     def steer(self):
@@ -204,7 +221,7 @@ class Ship(Shootable):
 class PlayAsteroids(Game):
 
     DELAY_START      = 150
-    MAX_ASTEROIDS    = 6
+    MAX_ASTEROIDS    = 0 #Was 6. Wanted to stop asteroid spawning for testing. By the end of the project, we need to fully remove asteroid code.
     INTRODUCE_CHANCE = 0.01
 
     def __init__(self):
@@ -234,7 +251,7 @@ class PlayAsteroids(Game):
             self.ship_one.turn_left()
         elif event.char == 'd':
             self.ship_one.turn_right()
-        if event.char == 'c' and self.ship_one.shotTimer == 0:
+        if event.char == 'c':
             self.ship_one.shoot()
 
         '''Player Two controls: pl;' + , to shoot '''
@@ -244,7 +261,7 @@ class PlayAsteroids(Game):
             self.ship_two.turn_left()
         elif event.char == '\'':
             self.ship_two.turn_right()
-        if event.char == ',' and self.ship_two.shotTimer == 0:
+        if event.char == ',':
             self.ship_two.shoot()
 
     def update(self):
@@ -265,6 +282,7 @@ class PlayAsteroids(Game):
 
 '''I don't know how useful the asteroid code is to us, but it's written so that there isn't any code that's needlessly repeated. The asteroid and shootable classes handle almost everything, while the child classes just specify the color, shrapnel pieces, and type of shrapnel. IDK how feasible it would be, but we could try to implement something similar with either powerups or with the photons our players will shoot (assuming that some powerups will change how the photons act) '''
 
+'''
 class Asteroid(Shootable):
     WORTH     = 5
     MIN_SPEED = 0.1
@@ -274,6 +292,7 @@ class Asteroid(Shootable):
     iFrames = 0 #Asteroids don't use these variables, but they're included to prevent crashes
     shootDelay = 0
     shotTimer = 0
+    hp = 1
 
     def __init__(self, position0, velocity0, world):
         Shootable.__init__(self,position0, velocity0, self.SIZE, world)
@@ -364,6 +383,7 @@ class LargeAsteroid(ParentAsteroid):
 
     def color(self):
         return "#9890A0"
+'''
 
 print("Player one (red): Press a and d to turn, w to create thrust, and c to shoot. \nPlayer two (blue): Press l and \' to turn, p to create thrust, and COMMA to shoot. \nPress q to quit.")
 game = PlayAsteroids()
