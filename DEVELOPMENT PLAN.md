@@ -1,7 +1,7 @@
 ### Things to Add:
 * Scoring
 * Respawning
-* Power-Ups
+* Power-Ups (see "smart power-up spawning" below)
 * ~~Hit detection~~
 * ~~delay between shots~~
 * ~~Shooting gives a couple i-frames~~
@@ -19,9 +19,6 @@
 * 11 points to win
 * Maybe include some obstacles in the environment that block players/their shots.
   * If included, we could have a pool of level layouts with a random wone being chosen every round.
-* Power-ups randomly spawn. Aquired power-ups are kept between rounds.
-  * Long-range shots
-  * Bouncing shots
-  * Allow player to ram into opponent for kills
+* **Smart power-up spawning**: Instead of being truly random, power-up spawns are affected by the game state. They tend to spawn between both players in a favorable position (a little closer) for the losing player. The worse a player is losing, the more underdog spawning comes into effect.
 * Map border beings to shrink if a match has gone on for too long.
   * Alternatively (or additionally), power-ups always spawning near the middle should encourage aggression.
