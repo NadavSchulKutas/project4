@@ -1,7 +1,6 @@
 ### Things to Add:
 * Hit detection
-* Delay between shots
-* Shooting gives a couple i-frames
+* Shooting gives a couple i-frames (there's a variable for the number of i-frames a player gets by shooting but there isn't any hitbox code, so that variable doesn't do anything)
 
 ### Code "Features":
 * No cap on acceleration (ignore for now)
