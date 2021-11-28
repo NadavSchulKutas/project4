@@ -1,9 +1,14 @@
 ### Things to Add:
-* Hit detection
-* Shooting gives a couple i-frames (there's a variable for the number of i-frames a player gets by shooting but there isn't any hitbox code, so that variable doesn't do anything)
+* Scoring
+* Respawning
+* Power-Ups
+* ~~Hit detection~~
+* ~~delay between shots~~
+* ~~Shooting gives a couple i-frames~~
 
 ### Code "Features":
 * No cap on acceleration (ignore for now)
+* Because photon velocity is inherited, players moving fast enough can create photons that wrap around the screen and shoot them in the back
 
 ### Finalized Ideas:
 * Two players each control a ship and fight each other. 
