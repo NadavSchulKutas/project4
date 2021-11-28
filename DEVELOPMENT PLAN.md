@@ -1,5 +1,5 @@
 ### Things to Add:
-* Scoring
+* Scoring (maybe look at PlayPong.py)
 * Respawning
 * Power-Ups (see "smart power-up spawning" below)
 * ~~Hit detection~~
