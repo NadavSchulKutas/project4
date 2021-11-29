@@ -58,8 +58,8 @@ class Shootable(MovingBody):
     def explode(self):
         self.world.score += self.WORTH
         self.hp -= 1
-        if self.hp > 0: #If the shot doesn't kill, create half the normal number of shrapnel (embers for ships, nothing for asteroids since they only have 1 hp)
-            for x in range(self.SHRAPNEL_PIECES // 2):
+        if self.hp > 0: #If the shot doesn't kill, create some shrapnel (embers for ships, nothing for asteroids since they only have 1 hp)
+            for x in range((self.hpMax - self.hp) * 2): #Produce more shrapnel as health decreases, always making at least one
                 self.SHRAPNEL_CLASS(self.position,self.world)
         else:
             if self.SHRAPNEL_CLASS == None:
@@ -102,7 +102,7 @@ class Ember(MovingBody):
 class Photon(MovingBody):
     '''Projectiles that the player shoots out'''
     INITIAL_SPEED = 2.6
-    LIFETIME      = 70 #Measured in tics, not distance travelled
+    LIFETIME      = 40 #Measured in tics, not distance travelled
 
     def __init__(self,source,world, player_one):
         self.player_one = player_one
@@ -131,13 +131,16 @@ class Photon(MovingBody):
 
 class Ship(Shootable):
     SHRAPNEL_CLASS  = Ember
-    SHRAPNEL_PIECES = 8
+    SHRAPNEL_PIECES = 12
     WORTH           = 1
 
     TURNS_IN_360   = 12
     IMPULSE_FRAMES = 4
     ACCELERATION   = 0.05
-    MAX_SPEED      = 2.0
+    MAX_SPEED      = 0.01
+    DRAG           = 0.05 #Amount of drag applied to a player who isn't inputting anything.
+    SCALE = float(2) #Scale ship size
+
 
     START_X   = 5
     START_Y   = 5
@@ -184,6 +187,9 @@ class Ship(Shootable):
     def speed_up(self):
         self.impulse = self.IMPULSE_FRAMES
 
+    def slow_down(self):
+        self.velocity = self.velocity * (1 - self.DRAG)**2 #Apply a stronger drag to let players slow down
+
     def shoot(self):
         '''If need be, we can add self.player_one to the variables given to photon and then add code to it so that photons don't hit the player that created them '''
         if self.shotTimer == 0: #Prevent shooting too frequently
@@ -196,12 +202,11 @@ class Ship(Shootable):
         super().update()
 
     def shape(self):
-        scale = 1.25 #Scale ship size
         h  = self.get_heading()
         hperp = h.perp()
-        p1 = self.position + h * 1.5 * scale #making ships a little longer
-        p2 = self.position + hperp * .5 * scale
-        p3 = self.position - hperp * .5 * scale
+        p1 = self.position + h * 1.5 * self.SCALE #making ships a little longer
+        p2 = self.position + hperp * .5 * self.SCALE
+        p3 = self.position - hperp * .5 * self.SCALE
         return [p1,p2,p3]
 
     def steer(self):
@@ -209,6 +214,8 @@ class Ship(Shootable):
             self.impulse -= 1
             return self.get_heading() * self.ACCELERATION
         else:
+            '''Removed because the game can only take one keyboard input at a time, so player one would slow down when player two presses a button and overrides player one's input
+            return self.velocity * (-self.DRAG**2) #if not accelerating, slow down ships equal to drag'''
             return Vector2D(0.0,0.0)
 
     def trim_physics(self):
@@ -216,6 +223,8 @@ class Ship(Shootable):
         m = self.velocity.magnitude()
         if m > self.MAX_SPEED:
             self.velocity = self.velocity * (self.MAX_SPEED / m)
+            print(self.velocity.magnitude())
+            #self.ACCELERATION = 0 #Prevents ships from going super super fast (maybe)
             self.impulse = 0
 
 class PlayAsteroids(Game):
@@ -247,6 +256,8 @@ class PlayAsteroids(Game):
         '''Player One controls: wasd + c to shoot '''
         if event.char == 'w':
             self.ship_one.speed_up()
+        elif event.char == 's':
+            self.ship_one.slow_down()
         if event.char == 'a':
             self.ship_one.turn_left()
         elif event.char == 'd':
@@ -257,6 +268,8 @@ class PlayAsteroids(Game):
         '''Player Two controls: pl;' + , to shoot '''
         if event.char == 'p':
             self.ship_two.speed_up()
+        elif event.char == ';':
+            self.ship_two.slow_down()
         if event.char == 'l':
             self.ship_two.turn_left()
         elif event.char == '\'':
