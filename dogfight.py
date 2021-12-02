@@ -56,8 +56,8 @@ class Shootable(MovingBody):
         return ((self.position - photon.position).magnitude() < self.radius)
 
     def explode(self):
-        self.world.score += self.WORTH
         self.hp -= 1
+        self.world.hpReport(True)
         if self.hp > 0: #If the shot doesn't kill, create some shrapnel (embers for ships, nothing for asteroids since they only have 1 hp)
             for x in range((self.hpMax - self.hp) * 2): #Produce more shrapnel as health decreases, always making at least one
                 self.SHRAPNEL_CLASS(self.position,self.world)
@@ -104,10 +104,14 @@ class Photon(MovingBody):
     INITIAL_SPEED = 2.6
     LIFETIME      = 40 #Measured in tics, not distance travelled
 
-    def __init__(self,source,world, player_one):
+    def __init__(self,source,world, player_one, reverse):
+        if reverse:
+            self.reversed = -1.0
+        else:
+            self.reversed = 1.0
         self.player_one = player_one
         self.age  = 0
-        v0 = source.get_heading() * self.INITIAL_SPEED
+        v0 = source.get_heading() * self.INITIAL_SPEED * self.reversed
         '''v0 = source.velocity + (source.get_heading() * self.INITIAL_SPEED) #Photons inherit the player's momentum. When testing the game, we should try having a version where photons don't do this'''
         MovingBody.__init__(self, source.position, v0, world)
 
@@ -139,15 +143,14 @@ class Ship(Shootable):
     ACCELERATION   = 0.05
     MAX_SPEED      = 0.01
     DRAG           = 0.05 #Amount of drag applied to a player who isn't inputting anything.
-    SCALE = float(2) #Scale ship size
-
+    SCALE = float(3) #Scale ship size
 
     START_X   = 5
     START_Y   = 5
 
     iFrames = 10 #Number of i-frames given to player after a shot. Meant to be used with something like "if self.shotTimer > (self.shootDelay - self.iFrames):"
     shootDelay = 20 #Delay between shots
-    hpMax = 5 #Max health. Getting shot removes 1 health
+    hpMax = 4 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
 
     def __init__(self, world, player_one):
         self.player_one = player_one
@@ -160,9 +163,15 @@ class Ship(Shootable):
         self.speed   = 0.0
         self.angle   = 90.0
         self.impulse = 0
-        radius = self.get_heading().magnitude()
+        radius = self.get_heading().magnitude() * 1.2 * self.SCALE #Hitboxes are circular. Since the ships are taller than they are wide, hitboxes will be slightly too short and wide. I tried to strike a balance between too big/small with 1.2, since the ship's length is 1.5
         Shootable.__init__(self, position0, velocity0, radius, world)
 
+        '''Power-up variables'''
+        self.has_reverseShot = False
+        self.has_speedBoost = False
+        self.has_Shield = False
+        self.multiShot = 0 #Number of times the player will multishot
+        self.times_multiShot = 0 #Counter to make sure that the player is multishotting the correct num of times
 
     def color(self):
         if self.player_one: #Player one is red
@@ -190,15 +199,24 @@ class Ship(Shootable):
     def slow_down(self):
         self.velocity = self.velocity * (1 - self.DRAG)**2 #Apply a stronger drag to let players slow down
 
-    def shoot(self):
+    def shoot(self): #The check for whether the player can shoot/resetting shotTimer is seperated from them actually shooting so that certain powerups let the player shoot multiple times without checks
         '''If need be, we can add self.player_one to the variables given to photon and then add code to it so that photons don't hit the player that created them '''
         if self.shotTimer == 0: #Prevent shooting too frequently
-            Photon(self, self.world, self.player_one)
-            self.shotTimer = self.shootDelay
+            self.shooting()
+            self.times_multiShot = 0
+        self.shotTimer = self.shootDelay
+    def shooting(self):
+        Photon(self, self.world, self.player_one, False)
+        if self.has_reverseShot:
+            Photon(self, self.world, self.player_one, True)
 
     def update(self):
         if self.shotTimer > 0:
             self.shotTimer -= 1
+        if self.multiShot > 0 and self.shotTimer == self.shootDelay - 4 *(self.times_multiShot+1) and self.times_multiShot < self.multiShot:
+            '''If the player has collected at least one multishot and it's been 4 frames since their last shot/multiShot and they haven't shot all of their multishots... '''
+            self.shooting() #shoot once
+            self.times_multiShot += 1 #increase the counter by one
         super().update()
 
     def shape(self):
@@ -210,9 +228,13 @@ class Ship(Shootable):
         return [p1,p2,p3]
 
     def steer(self):
+        if self.has_speedBoost:
+            speedboost = 2.0
+        else:
+            speedboost = 1.0
         if self.impulse > 0:
             self.impulse -= 1
-            return self.get_heading() * self.ACCELERATION
+            return self.get_heading() * self.ACCELERATION * speedboost
         else:
             '''Removed because the game can only take one keyboard input at a time, so player one would slow down when player two presses a button and overrides player one's input
             return self.velocity * (-self.DRAG**2) #if not accelerating, slow down ships equal to drag'''
@@ -227,14 +249,13 @@ class Ship(Shootable):
             #self.ACCELERATION = 0 #Prevents ships from going super super fast (maybe)
             self.impulse = 0
 
-class PlayAsteroids(Game):
-
+class PlayDogfight(Game):
     DELAY_START      = 150
     MAX_ASTEROIDS    = 0 #Was 6. Wanted to stop asteroid spawning for testing. By the end of the project, we need to fully remove asteroid code.
     INTRODUCE_CHANCE = 0.01
 
     def __init__(self):
-        Game.__init__(self,"ASTEROIDS!!!",60.0,45.0,800,600,topology='wrapped')
+        Game.__init__(self,"Dogfight!",60.0,45.0,800,600,topology='wrapped',console_lines=5)
 
         self.number_of_asteroids = 0
         self.number_of_shrapnel = 0
@@ -247,8 +268,22 @@ class PlayAsteroids(Game):
         self.ship_one = Ship(self, player_one=True)
         self.ship_two = Ship(self, player_one=False)
 
+        self.report("Player one (red): Press a and d to turn, w to accelerate, d to deccelerate, and c to shoot.")
+        self.report("Player two (blue): Press l and \' to turn, p to create thrust, and COMMA to shoot.")
+        self.report("Press q to quit.")
+        self.hpReport(False)
+
     def max_asteroids(self):
         return min(2 + self.level,self.MAX_ASTEROIDS)
+
+    def hpReport(self, damage):
+        hpScale = 3 #Make the hp bars wider/narrower
+        if damage: #Clear console if ship is taking damage
+            self.report()
+            self.report()
+        self.report("[" + " " *(self.ship_one.hpMax - self.ship_one.hp)*hpScale + "█" *self.ship_one.hp*hpScale + "] VS [" + "█" *self.ship_two.hp*hpScale + " " *(self.ship_two.hpMax - self.ship_two.hp)*hpScale + "]")
+        if damage:
+            self.report()
 
     def handle_keypress(self,event):
         Game.handle_keypress(self,event)
@@ -292,6 +327,11 @@ class PlayAsteroids(Game):
                 LargeAsteroid(self)
 
         Game.update(self)
+#class PowerUp(Shootable):
+#class ReverseLaser(PowerUp):
+#class SpeedBoost(PowerUp):
+#class Shield(PowerUp):
+#class MultiShot(PowerUp):
 
 '''I don't know how useful the asteroid code is to us, but it's written so that there isn't any code that's needlessly repeated. The asteroid and shootable classes handle almost everything, while the child classes just specify the color, shrapnel pieces, and type of shrapnel. IDK how feasible it would be, but we could try to implement something similar with either powerups or with the photons our players will shoot (assuming that some powerups will change how the photons act) '''
 
@@ -398,8 +438,7 @@ class LargeAsteroid(ParentAsteroid):
         return "#9890A0"
 '''
 
-print("Player one (red): Press a and d to turn, w to create thrust, and c to shoot. \nPlayer two (blue): Press l and \' to turn, p to create thrust, and COMMA to shoot. \nPress q to quit.")
-game = PlayAsteroids()
+game = PlayDogfight()
 while not game.GAME_OVER:
     time.sleep(1.0/60.0)
     game.update()
