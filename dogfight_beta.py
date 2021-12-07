@@ -142,7 +142,7 @@ class Ship(Shootable):
     SHRAPNEL_PIECES = 12
     iFrames = 10 #Number of i-frames given to player after a shot. Meant to be used with something like "if self.shotTimer > (self.shootDelay - self.iFrames):"
     shootDelay = 20 #Delay between shots
-    hpMax = 4 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
+    hpMax = 6 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
 
     #MovingBody variables
     START_X   = 5
@@ -354,8 +354,10 @@ class PlayDogfight(Game):
         self.report("[" + " " *(self.ship_one.hpMax - self.ship_one.hp)*self.hpScale + "█" *self.ship_one.hp*self.hpScale + "] VS [" + "█" *self.ship_two.hp*self.hpScale + " " *(self.ship_two.hpMax - self.ship_two.hp)*self.hpScale + "]")
         if (self.ship_one.hp == 0):
             self.report("PLAYER TWO WINS!!!")
+            self.report("Press q to quit.")
         if (self.ship_two.hp == 0):
             self.report("PLAYER ONE WINS!!!")
+            self.report("Press q to quit.")
         self.report()
 
     def handle_keypress(self,event):
