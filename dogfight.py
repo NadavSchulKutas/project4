@@ -39,7 +39,7 @@ class Shootable(MovingBody):
     '''Parent class for anything that can be shot'''
     SHRAPNEL_CLASS  = None
     SHRAPNEL_PIECES = 0
-    WORTH           = 1
+    is_powerup = False
 
     def __init__(self, position0, velocity0, radius, world):
         self.radius = radius
@@ -112,7 +112,7 @@ class Photon(MovingBody):
         self.player_one = player_one
         self.age  = 0
         v0 = source.get_heading() * self.INITIAL_SPEED * self.reversed
-        '''v0 = source.velocity + (source.get_heading() * self.INITIAL_SPEED) #Photons inherit the player's momentum. When testing the game, we should try having a version where photons don't do this'''
+        '''v0 = source.velocity + (source.get_heading() * self.INITIAL_SPEED) * self.reversed #Photons inherit the player's momentum. When testing the game, we should try having a version where photons don't do this'''
         MovingBody.__init__(self, source.position, v0, world)
 
     def color(self):
@@ -129,28 +129,31 @@ class Photon(MovingBody):
             targets = [a for a in self.world.agents if isinstance(a,Shootable)]
             for t in targets:
                 if t.is_hit_by(self):
+                    if t.is_powerup == True:
+                        t.player_one = self.player_one
                     t.explode()
                     self.leave()
                     return
 
 class Ship(Shootable):
+    #Shootable variables
     SHRAPNEL_CLASS  = Ember
     SHRAPNEL_PIECES = 12
-    WORTH           = 1
+    iFrames = 10 #Number of i-frames given to player after a shot. Meant to be used with something like "if self.shotTimer > (self.shootDelay - self.iFrames):"
+    shootDelay = 20 #Delay between shots
+    hpMax = 4 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
 
+    #MovingBody variables
+    START_X   = 5
+    START_Y   = 5
+
+    #Ship-exclusive variables
     TURNS_IN_360   = 12
     IMPULSE_FRAMES = 4
     ACCELERATION   = 0.05
     MAX_SPEED      = 0.01
     DRAG           = 0.05 #Amount of drag applied to a player who isn't inputting anything.
     SCALE = float(3) #Scale ship size
-
-    START_X   = 5
-    START_Y   = 5
-
-    iFrames = 10 #Number of i-frames given to player after a shot. Meant to be used with something like "if self.shotTimer > (self.shootDelay - self.iFrames):"
-    shootDelay = 20 #Delay between shots
-    hpMax = 4 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
 
     def __init__(self, world, player_one):
         self.player_one = player_one
@@ -160,10 +163,9 @@ class Ship(Shootable):
         yoffset =  self.START_Y if player_one else -self.START_Y
         position0    = Point2D(xoffset, yoffset)
         velocity0    = Vector2D(0.0,0.0)
-        self.speed   = 0.0
         self.angle   = 90.0
         self.impulse = 0
-        radius = self.get_heading().magnitude() * 1.2 * self.SCALE #Hitboxes are circular. Since the ships are taller than they are wide, hitboxes will be slightly too short and wide. I tried to strike a balance between too big/small with 1.2, since the ship's length is 1.5
+        radius = 1.2 * self.SCALE #Hitboxes are circular. Since the ships are taller than they are wide, hitboxes will be slightly too short and wide. I tried to strike a balance between too big/small with 1.2, since the ship's length is 1.5
         Shootable.__init__(self, position0, velocity0, radius, world)
 
         '''Power-up variables'''
@@ -249,37 +251,84 @@ class Ship(Shootable):
             #self.ACCELERATION = 0 #Prevents ships from going super super fast (maybe)
             self.impulse = 0
 
-#class PowerUp(Shootable):
-#    SCALE = float(3) # powerup scale
-#    START_X   = 3.4554 #i forget how to do it but i want a random number here
-#    START_Y   = 8.3543 #and here too
-#    def __init__(self, world):
-#        position = Point2D(START_X, START_Y)
-        #radius = self.get_heading().magnitude() * 1.2 * self.SCALE
-#        Shootable.__init__(self, position, Vector2D(0.0,0.0), radius, world)
-#class ReverseLaser(PowerUp):
-#class SpeedBoost(PowerUp):
-#class Shield(PowerUp):
-#class MultiShot(PowerUp):
+class PowerUp(Shootable):
+    SCALE = 1 #size
+    is_powerup = True
+    COLOR = "#ffffff"
 
+    #Shootable variables included to prevent errors within Shootable functions
+    SHRAPNEL_CLASS  = Ember
+    SHRAPNEL_PIECES = 2
+    iFrames = 0
+    shootDelay = 0
+    shotTimer = 0
+    hp = 1
+
+    def __init__(self, world):
+        self.world = world
+        self.START_X = random.randrange(-self.world.worldW//2.0, self.world.worldW//2.0) #spawn locations are a random coordinate in the world. Integer division used to avoid error in random.py
+        self.START_Y = random.randrange(-self.world.worldH//2.0, self.world.worldH//2.0)
+        position = Point2D(self.START_X, self.START_Y)
+        radius = self.SCALE
+        self.player_one = True
+
+        Shootable.__init__(self, position, Vector2D(0.0,0.0), radius, world)
+
+    def shape(self):
+        p1 = self.position + Vector2D( 0.0, self.SCALE)
+        p2 = self.position + Vector2D(-self.SCALE, 0.0)
+        p3 = self.position + Vector2D(0.0,-self.SCALE)
+        p4 = self.position + Vector2D( self.SCALE,0.0)
+        return [p1,p2,p3,p4]
+
+    def color(self):
+        return self.COLOR
+class ReverseLaser(PowerUp):
+    COLOR = "#48c9b0"
+    def explode(self):
+        if self.player_one:
+            self.world.ship_one.has_reverseShot = True
+        else:
+            self.world.ship_two.has_reverseShot = True
+        super().explode()
+class SpeedBoost(PowerUp):
+    COLOR = "#f9e79f"
+    def explode(self):
+        if self.player_one:
+            self.world.ship_one.has_speedBoostShot = True
+        else:
+            self.world.ship_two.has_speedBoostShot = True
+        super().explode()
+class Shield(PowerUp):
+    COLOR = "#e5e7e9"
+    def explode(self):
+        if self.player_one:
+            self.world.ship_one.has_Shield = True
+        else:
+            self.world.ship_two.has_Shield = True
+        super().explode()
+class MultiShot(PowerUp):
+    COLOR = "#bb8fce"
+    def explode(self):
+        if self.player_one:
+            self.world.ship_one.multiShot += 1
+        else:
+            self.world.ship_two.multiShot += 1
+        super().explode()
 
 class PlayDogfight(Game):
-    DELAY_START      = 150
-    MAX_ASTEROIDS    = 0 #Was 6. Wanted to stop asteroid spawning for testing. By the end of the project, we need to fully remove asteroid code.
-    INTRODUCE_CHANCE = 0.01
+    MIN_DELAY = 180 #minimum delay before spawning a power-up
+    MAX_DELAY = 800 #maximum delay before spawning a power-up
+    DELAY_START = 0 #300 #Additional delay when game is started
+    #POWERUPS = [ReverseLaser(self), SpeedBoost(self), Shield(self), MultiShot(self)] #List of all available powerups
 
+    worldW = 60.0 #world width
+    worldH = 45.0 #world height
     def __init__(self):
-        Game.__init__(self,"Dogfight!",60.0,45.0,800,600,topology='wrapped',console_lines=5)
+        Game.__init__(self,"Dogfight!",self.worldW,self.worldH,800,600,topology='wrapped',console_lines=5)
 
-        self.number_of_asteroids = 0
-        self.number_of_shrapnel = 0
-        self.level = 1
-        self.score = 0
-
-        self.before_start_ticks = self.DELAY_START
-    #    self.before_powerup = 99 #just wanna make this random
-        self.started = False
-    #    self.powerup_started = False
+        self.before_powerup = self.DELAY_START #just wanna make this random
+        self.powerup_started = False
 
         self.ship_one = Ship(self, player_one=True)
         self.ship_two = Ship(self, player_one=False)
@@ -288,9 +337,6 @@ class PlayDogfight(Game):
         self.report("Player two (blue): Press l and \' to turn, p to create thrust, and COMMA to shoot.")
         self.report("Press q to quit.")
         self.hpReport(False)
-
-    def max_asteroids(self):
-        return min(2 + self.level,self.MAX_ASTEROIDS)
 
     def hpReport(self, damage):
         hpScale = 3 #Make the hp bars wider/narrower
@@ -329,31 +375,23 @@ class PlayDogfight(Game):
             self.ship_two.shoot()
 
     def update(self):
-        # Are we waiting to toss asteroids out?
-        if self.before_start_ticks > 0:
-            self.before_start_ticks -= 1
+        # Are we waiting to spawn power-ups?
+        if self.before_powerup > 0:
+            self.before_powerup -= 1
+        elif self.powerup_started == False:
+            self.powerup_started = True
+            self.before_powerup = random.randint(self.MIN_DELAY, self.MAX_DELAY)
         else:
-            self.started = True
+            #random.choice(self.POWERUPS)
+            ReverseLaser(self) #Only spawning ReverseLaser for debugging reasons
+            self.before_powerup = random.randint(self.MIN_DELAY, self.MAX_DELAY)
 
-        # Should we toss a new asteroid out?
-        if self.started:
-            tense = (self.number_of_asteroids >= self.max_asteroids())
-            tense = tense or (self.number_of_shrapnel >= 2*self.level)
-            if not tense and random.random() < self.INTRODUCE_CHANCE:
-                LargeAsteroid(self)
-    #def powerup(self):
-    #    if self.before_powerup > 0:
-    #        self.before_powerup -= 1
-    #    else:
-    #        self.powerup_started = True
-    #    if self.powerup_started:
-    #            PowerUp(self)
-    #    Game.update(self)
+        Game.update(self)
+
 '''I don't know how useful the asteroid code is to us, but it's written so that there isn't any code that's needlessly repeated. The asteroid and shootable classes handle almost everything, while the child classes just specify the color, shrapnel pieces, and type of shrapnel. IDK how feasible it would be, but we could try to implement something similar with either powerups or with the photons our players will shoot (assuming that some powerups will change how the photons act) '''
 
 '''
 class Asteroid(Shootable):
-    WORTH     = 5
     MIN_SPEED = 0.1
     MAX_SPEED = 0.3
     SIZE      = 3.0
@@ -425,7 +463,6 @@ class ShrapnelAsteroid(Asteroid):
         self.world.number_of_shrapnel -= 1
 
 class SmallAsteroid(ShrapnelAsteroid):
-    WORTH           = 20
     MIN_SPEED       = Asteroid.MIN_SPEED * 2.0
     MAX_SPEED       = Asteroid.MAX_SPEED * 2.0
     SIZE            = Asteroid.SIZE / 2.0
@@ -436,7 +473,6 @@ class SmallAsteroid(ShrapnelAsteroid):
         return "#A8B0C0"
 
 class MediumAsteroid(ShrapnelAsteroid):
-    WORTH           = 10
     MIN_SPEED       = Asteroid.MIN_SPEED * math.sqrt(2.0)
     MAX_SPEED       = Asteroid.MAX_SPEED * math.sqrt(2.0)
     SIZE            = Asteroid.SIZE / math.sqrt(2.0)
