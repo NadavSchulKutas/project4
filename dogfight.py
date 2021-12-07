@@ -249,6 +249,20 @@ class Ship(Shootable):
             #self.ACCELERATION = 0 #Prevents ships from going super super fast (maybe)
             self.impulse = 0
 
+#class PowerUp(Shootable):
+#    SCALE = float(3) # powerup scale
+#    START_X   = 3.4554 #i forget how to do it but i want a random number here
+#    START_Y   = 8.3543 #and here too
+#    def __init__(self, world):
+#        position = Point2D(START_X, START_Y)
+        #radius = self.get_heading().magnitude() * 1.2 * self.SCALE
+#        Shootable.__init__(self, position, Vector2D(0.0,0.0), radius, world)
+#class ReverseLaser(PowerUp):
+#class SpeedBoost(PowerUp):
+#class Shield(PowerUp):
+#class MultiShot(PowerUp):
+
+
 class PlayDogfight(Game):
     DELAY_START      = 150
     MAX_ASTEROIDS    = 0 #Was 6. Wanted to stop asteroid spawning for testing. By the end of the project, we need to fully remove asteroid code.
@@ -263,7 +277,9 @@ class PlayDogfight(Game):
         self.score = 0
 
         self.before_start_ticks = self.DELAY_START
+    #    self.before_powerup = 99 #just wanna make this random
         self.started = False
+    #    self.powerup_started = False
 
         self.ship_one = Ship(self, player_one=True)
         self.ship_two = Ship(self, player_one=False)
@@ -325,14 +341,14 @@ class PlayDogfight(Game):
             tense = tense or (self.number_of_shrapnel >= 2*self.level)
             if not tense and random.random() < self.INTRODUCE_CHANCE:
                 LargeAsteroid(self)
-
-        Game.update(self)
-#class PowerUp(Shootable):
-#class ReverseLaser(PowerUp):
-#class SpeedBoost(PowerUp):
-#class Shield(PowerUp):
-#class MultiShot(PowerUp):
-
+    #def powerup(self):
+    #    if self.before_powerup > 0:
+    #        self.before_powerup -= 1
+    #    else:
+    #        self.powerup_started = True
+    #    if self.powerup_started:
+    #            PowerUp(self)
+    #    Game.update(self)
 '''I don't know how useful the asteroid code is to us, but it's written so that there isn't any code that's needlessly repeated. The asteroid and shootable classes handle almost everything, while the child classes just specify the color, shrapnel pieces, and type of shrapnel. IDK how feasible it would be, but we could try to implement something similar with either powerups or with the photons our players will shoot (assuming that some powerups will change how the photons act) '''
 
 '''
