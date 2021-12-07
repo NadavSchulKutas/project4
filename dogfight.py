@@ -344,6 +344,12 @@ class PlayDogfight(Game):
             self.report()
             self.report()
         self.report("[" + " " *(self.ship_one.hpMax - self.ship_one.hp)*hpScale + "█" *self.ship_one.hp*hpScale + "] VS [" + "█" *self.ship_two.hp*hpScale + " " *(self.ship_two.hpMax - self.ship_two.hp)*hpScale + "]")
+        if (self.ship_one.hp == 0):
+            self.report("PLAYER TWO WINS!!!")
+            self.report("Press q to quit.")
+        if (self.ship_two.hp == 0):
+            self.report("PLAYER ONE WINS!!!")
+            self.report("Press q to quit.")
         if damage:
             self.report()
 
@@ -395,19 +401,15 @@ class Asteroid(Shootable):
     MIN_SPEED = 0.1
     MAX_SPEED = 0.3
     SIZE      = 3.0
-
     iFrames = 0 #Asteroids don't use these variables, but they're included to prevent crashes
     shootDelay = 0
     shotTimer = 0
     hp = 1
-
     def __init__(self, position0, velocity0, world):
         Shootable.__init__(self,position0, velocity0, self.SIZE, world)
         self.make_shape()
-
     def choose_velocity(self):
         return Vector2D.random() * random.uniform(self.MIN_SPEED,self.MAX_SPEED)
-
     def make_shape(self):
         angle = 0.0
         dA = 2.0 * math.pi / 15.0
@@ -423,10 +425,8 @@ class Asteroid(Shootable):
             angle += dA
             offset = Vector2D(dx,dy) * r
             self.polygon.append(offset)
-
     def shape(self):
         return [self.position + offset for offset in self.polygon]
-
 class ParentAsteroid(Asteroid):
     def __init__(self,world):
         world.number_of_asteroids += 1
@@ -447,45 +447,36 @@ class ParentAsteroid(Asteroid):
                 # TOP SIDE
                 position0.y = world.bounds.ymax
         Asteroid.__init__(self,position0,velocity0,world)
-
     def explode(self):
         Asteroid.explode(self)
         self.world.number_of_asteroids -= 1
-
 class ShrapnelAsteroid(Asteroid):
     def __init__(self, position0, world):
         world.number_of_shrapnel += 1
         velocity0 = self.choose_velocity()
         Asteroid.__init__(self, position0, velocity0, world)
-
     def explode(self):
         Asteroid.explode(self)
         self.world.number_of_shrapnel -= 1
-
 class SmallAsteroid(ShrapnelAsteroid):
     MIN_SPEED       = Asteroid.MIN_SPEED * 2.0
     MAX_SPEED       = Asteroid.MAX_SPEED * 2.0
     SIZE            = Asteroid.SIZE / 2.0
     SHRAPNEL_CLASS  = Ember
     SHRAPNEL_PIECES = 8
-
     def color(self):
         return "#A8B0C0"
-
 class MediumAsteroid(ShrapnelAsteroid):
     MIN_SPEED       = Asteroid.MIN_SPEED * math.sqrt(2.0)
     MAX_SPEED       = Asteroid.MAX_SPEED * math.sqrt(2.0)
     SIZE            = Asteroid.SIZE / math.sqrt(2.0)
     SHRAPNEL_CLASS  = SmallAsteroid
     SHRAPNEL_PIECES = 3
-
     def color(self):
         return "#7890A0"
-
 class LargeAsteroid(ParentAsteroid):
     SHRAPNEL_CLASS  = MediumAsteroid
     SHRAPNEL_PIECES = 2
-
     def color(self):
         return "#9890A0"
 '''
