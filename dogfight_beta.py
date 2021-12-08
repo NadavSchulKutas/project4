@@ -142,9 +142,9 @@ class Photon(MovingBody):
 
 class Ship(Shootable):
     #Shootable variables
-    hpMax = 4 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
+    hpMax = 7 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
     SHRAPNEL_CLASS  = Ember
-    SHRAPNEL_PIECES = hpMax * 2 + 3 #Amount of shrapnel on kill is proportional to max health
+    SHRAPNEL_PIECES = hpMax * 2 + 3 #Amount of shrapnel on kill is proportional to max health + a little extra
     iFrames = 10 #Number of i-frames given to player after a shot. Meant to be used with something like "if self.shotTimer > (self.shootDelay - self.iFrames):"
     shootDelay = 20 #Delay between shots
 
@@ -153,8 +153,14 @@ class Ship(Shootable):
     START_Y   = 5
 
     #Ship-exclusive variables
-    TURNS_IN_360   = 20
-    IMPULSE_FRAMES = 4
+    #Turning Variables. Once we decide on keyboard movement these variables can be cleaned up
+    TURNS_IN_360 = 20 #Currently Unused
+    TURN_IMPULSE = 4 #How many impulse frames are added/subtracted for a turn input
+    MAX_TURN = TURN_IMPULSE #Used, but redundant.
+    TURN_MULTIPLIER = 4 #Used in determining how many degrees the ship should actually turn
+    TURN_THRESHOLD = 6 #Unused
+
+    THRUST_IMPULSE = 4 #previously IMPULSE_FRAMES
     ACCELERATION   = 0.05
     MAX_SPEED      = 2
     DRAG           = 0.05 #Amount of drag applied to a player who isn't inputting anything.
@@ -162,7 +168,7 @@ class Ship(Shootable):
 
     def __init__(self, world, player_one):
         self.player_one = player_one
-        self.shotTimer = 60 #Players can shoot one second after spawning
+        self.shotTimer = 120 #Players can shoot two seconds after spawning
         self.hp = self.hpMax
         xoffset = -self.START_X if player_one else  self.START_X
         yoffset =  self.START_Y if player_one else -self.START_Y
@@ -170,6 +176,7 @@ class Ship(Shootable):
         velocity0    = Vector2D(0.0,0.0)
         self.angle   = 90.0
         self.impulse = 0
+        self.lrImpulse = 0
         self.mBungee = 1.0 #How much the ship will spring back to the mouse (like there's a bungee cord between them). 1 by default for non-mouse controls
         radius = 1.2 * self.SCALE #Hitboxes are circular. Since the ships are taller than they are wide, hitboxes will be slightly too short and wide. I tried to strike a balance between too big/small with 1.2, since the ship's length is 1.5
         Shootable.__init__(self, position0, velocity0, radius, world)
@@ -208,13 +215,20 @@ class Ship(Shootable):
             return mouseShip
 
     def turn_left(self):
-        self.angle += 360.0 / self.TURNS_IN_360
-
+        #self.angle += 360.0 / self.TURNS_IN_360
+        if self.lrImpulse < 0: #Cancels turn in opposite direction
+            self.lrImpulse = 0
+        if self.lrImpulse < self.MAX_TURN: #Adds impulse if you aren't over the max impulse
+            self.lrImpulse += self.TURN_IMPULSE
     def turn_right(self):
-        self.angle -= 360.0 / self.TURNS_IN_360
+        #self.angle -= 360.0 / self.TURNS_IN_360
+        if self.lrImpulse > 0:
+            self.lrImpulse = 0
+        if self.lrImpulse > -self.MAX_TURN:
+            self.lrImpulse -= self.TURN_IMPULSE
 
     def speed_up(self):
-        self.impulse = self.IMPULSE_FRAMES
+        self.impulse = self.THRUST_IMPULSE
 
     def slow_down(self):
         self.velocity = self.velocity * (1 - self.DRAG)**2 #Apply a stronger drag to let players slow down
@@ -224,7 +238,7 @@ class Ship(Shootable):
         if self.shotTimer == 0: #Prevent shooting too frequently
             self.shooting()
             self.times_multiShot = 0
-        self.shotTimer = self.shootDelay
+            self.shotTimer = self.shootDelay
     def shooting(self):
         Photon(self, self.world, self.player_one, False)
         if self.has_reverseShot:
@@ -248,6 +262,19 @@ class Ship(Shootable):
         return [p1,p2,p3]
 
     def steer(self):
+        '''Turning:'''
+        if self.lrImpulse > 0: #bring lrImpulse 1 closer to 0
+            self.lrImpulse -= 1
+        elif self.lrImpulse < 0:
+            self.lrImpulse += 1
+
+        self.angle += self.lrImpulse * self.TURN_MULTIPLIER #Change in angle slows down as ship loses lrImpulse
+        '''if (self.lrImpulse**2)**0.5 <= self.TURN_THRESHOLD: #**2**0.5 makes sure that the number is always positive. Turn threshold sets a limit on how much you can turn in one frame, but still lets you have more impulse frames than the threshold.
+            self.angle += self.lrImpulse * self.TURN_MULTIPLIER
+        else:
+            self.angle += (self.lrImpulse//self.MAX_TURN) * self.TURN_THRESHOLD * self.TURN_MULTIPLIER #(self.lrImpulse//self.MAX_TURN) will either be 1 or -1 depending on if lrImpulse is positive or negative '''
+
+        '''Moving forward/Backwards:'''
         if self.has_speedBoost:
             speedboost = 2.0
         else:
