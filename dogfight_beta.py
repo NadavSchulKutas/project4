@@ -1,5 +1,3 @@
-'''This is where we're going to code our game (assuming you want to do it all in one file). It's just a copy of PlayAsteroids.py for now, but we'll change that as we develop the actual game'''
-
 from tkinter import *
 from Game import Game, Agent
 from geometry import Point2D, Vector2D
@@ -47,17 +45,16 @@ class Shootable(MovingBody):
         MovingBody.__init__(self, position0, velocity0, world)
 
     def is_hit_by(self, photon):
-        if self.shotTimer > (self.shootDelay - self.iFrames): #Never get hit if you have i-frames or are the player who fired
-            #print("dodged!") #Debugging
+        if photon.player_one == self.player_one: #Players can't shoot themselves
             return False
-        '''Version where players could not shoot themselves
-        if photon.player_one == self.player_one or self.shotTimer > (self.shootDelay - self.iFrames): #Never get hit if you have i-frames or are the player who fired
-            #print("dodged!") #Debugging
-            return False'''
         return ((self.position - photon.position).magnitude() < self.radius)
 
     def explode(self):
-        if not self.has_Shield:
+        if self.has_Shield:
+            self.has_Shield = False
+            #print("Shielded!") #Debugging
+            self.SHRAPNEL_CLASS(self.position,self.world)
+        else:
             self.hp -= 1
             if self.is_powerup == False:
                 self.world.hpReport()
@@ -72,8 +69,6 @@ class Shootable(MovingBody):
                     '''Otherwise, make objects in the object's shrapnel class at its position SHRAPNEL_PIECES number of times'''
                     self.SHRAPNEL_CLASS(self.position,self.world)
                 self.leave()
-        else:
-            self.has_Shield = False
 
 class Ember(MovingBody):
     '''Little sparks that come off when an asteroid is destroyed'''
@@ -123,7 +118,7 @@ class Photon(MovingBody):
     def color(self):
         if self.player_one: #Player one is red
             return "#ffaaa1"
-        return "#bcdcff"
+        return "#93c5fc"
 
     def update(self):
         MovingBody.update(self)
@@ -145,7 +140,7 @@ class Ship(Shootable):
     hpMax = 7 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
     SHRAPNEL_CLASS  = Ember
     SHRAPNEL_PIECES = hpMax * 2 + 3 #Amount of shrapnel on kill is proportional to max health + a little extra
-    iFrames = 10 #Number of i-frames given to player after a shot. Meant to be used with something like "if self.shotTimer > (self.shootDelay - self.iFrames):"
+    colorFrames = 10 #How long player color is changed after a shot.
     shootDelay = 20 #Delay between shots
 
     #MovingBody variables
@@ -190,13 +185,13 @@ class Ship(Shootable):
 
     def color(self):
         if self.player_one: #Player one is red
-            if self.shotTimer > (self.shootDelay - self.iFrames):
+            if self.has_Shield == True or self.shotTimer > (self.shootDelay - self.colorFrames):
                 return "#ffaaa1" #Players are a lighter color when invincible
             return "#f74830"
         else: #Player two is blue
-            if self.shotTimer > (self.shootDelay - self.iFrames):
-                return "#bcdcff"
-            return "#3090f7"
+            if self.has_Shield == True or self.shotTimer > (self.shootDelay - self.colorFrames):
+                return "#93c5fc"
+            return "#2888ee"
 
     def get_heading(self):
         if self.player_one == True:
@@ -300,7 +295,7 @@ class PowerUp(Shootable):
     #Shootable variables included to prevent errors within Shootable functions
     SHRAPNEL_CLASS  = Ember
     SHRAPNEL_PIECES = 2
-    iFrames = 0
+    colorFrames = 0
     shootDelay = 0
     shotTimer = 0
     hp = 1
@@ -410,17 +405,9 @@ class PlayDogfight(Game):
         if self.mouse_down:
             self.ship_two.shoot()'''
 
-        '''Player Two controls: pl;' + \ to shoot'''
-        if event.char == '\':
+        '''Player Two controls: mouse to move (in get_heading) and ] to shoot'''
+        if event.char == ']':
             self.ship_two.shoot()
-        '''if event.char == 'p':
-            self.ship_two.speed_up()
-        elif event.char == ';':
-            self.ship_two.slow_down()
-        if event.char == 'l':
-            self.ship_two.turn_left()
-        elif event.char == '\'':
-            self.ship_two.turn_right()'''
 
     def update(self):
         # Are we waiting to spawn power-ups?
