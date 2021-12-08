@@ -68,6 +68,7 @@ class Shootable(MovingBody):
                 for x in range(self.SHRAPNEL_PIECES):
                     '''Otherwise, make objects in the object's shrapnel class at its position SHRAPNEL_PIECES number of times'''
                     self.SHRAPNEL_CLASS(self.position,self.world)
+                self.world.ship_two.freeze_blue()
                 self.leave()
 
 class Ember(MovingBody):
@@ -153,7 +154,7 @@ class Ship(Shootable):
     #Shootable variables
     hpMax = 15 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
     SHRAPNEL_CLASS  = Ember
-    SHRAPNEL_PIECES = hpMax * 2 + 3 #Amount of shrapnel on kill is proportional to max health + a little extra
+    SHRAPNEL_PIECES = hpMax * 2 #Amount of shrapnel on kill is proportional to max health so that the hits before tge kill don't send out more shrapnel
     colorFrames = 10 #How long player color is changed after a shot.
 
     #MovingBody variables
@@ -161,13 +162,8 @@ class Ship(Shootable):
     START_Y   = 10
 
     #Ship-exclusive variables
-    #Turning Variables. Once we decide on keyboard movement these variables can be cleaned up
-    TURNS_IN_360 = 20 #Currently Unused
     TURN_IMPULSE = 6 #How many impulse frames are added/subtracted for a turn input
-    MAX_TURN = TURN_IMPULSE #Used, but redundant.
     TURN_MULTIPLIER = 4 #Used in determining how many degrees the ship should actually turn
-    TURN_THRESHOLD = 6 #Unused
-
     THRUST_IMPULSE = 4 #previously IMPULSE_FRAMES
     ACCELERATION   = 0.05
     MAX_SPEED      = 2
@@ -210,12 +206,18 @@ class Ship(Shootable):
                 return "#93c5fc"
             return "#2888ee"
 
+    def freeze_blue(self): #Save the last position of the mouse when player 1 dies so that player 2 can be properly frozen
+        self.freeze = Vector2D(self.world.mouse_position.x - self.position.x, self.world.mouse_position.y - self.position.y) #Draw a line between mouse at that moment and ship at that moment
+
     def get_heading(self):
         if self.player_one:
             angle = self.angle * math.pi / 180.0
             return Vector2D(math.cos(angle), math.sin(angle))
         else:
-            mouseShip = Vector2D(self.world.mouse_position.x - self.position.x, self.world.mouse_position.y - self.position.y) #Draw a line between mouse and ship
+            if self.world.ship_one.hp == 0:
+                mouseShip = self.freeze
+            else: #Stop tracking the mouse position if player one has died
+                mouseShip = Vector2D(self.world.mouse_position.x - self.position.x, self.world.mouse_position.y - self.position.y) #Draw a line between mouse and ship
             msMagnitude = mouseShip.magnitude()
             mouseShip = mouseShip * msMagnitude**-1 #makes the magnitude of the vector 1, which is necessary for other code to work because magnitude affects how large the ship is drawn.
 
@@ -230,14 +232,12 @@ class Ship(Shootable):
         #self.angle += 360.0 / self.TURNS_IN_360
         if self.lrImpulse < 0: #Cancels turn in opposite direction
             self.lrImpulse = 0
-        elif self.lrImpulse < self.MAX_TURN: #Adds impulse if you aren't over the max impulse
-            self.lrImpulse += self.TURN_IMPULSE
+        self.lrImpulse = self.TURN_IMPULSE
     def turn_right(self):
         #self.angle -= 360.0 / self.TURNS_IN_360
         if self.lrImpulse > 0:
             self.lrImpulse = 0
-        elif self.lrImpulse > -self.MAX_TURN:
-            self.lrImpulse -= self.TURN_IMPULSE
+        self.lrImpulse = -self.TURN_IMPULSE
 
     def speed_up(self):
         self.impulse = self.THRUST_IMPULSE
@@ -276,6 +276,11 @@ class Ship(Shootable):
         return [p1,p2,p3]
 
     def steer(self):
+        '''End of Game:'''
+        if self.world.ship_one.hp == 0 or self.world.ship_two.hp == 0:
+            self.slow_down()
+            return Vector2D(0.0,0.0)
+
         '''Turning:'''
         if self.lrImpulse > 0: #bring lrImpulse 1 closer to 0
             self.lrImpulse -= 1
@@ -354,7 +359,6 @@ class MultiShot(PowerUp):
 class PlayDogfight(Game):
     MIN_DELAY = 90 #minimum delay before spawning a power-up
     MAX_DELAY = 400 #maximum delay before spawning a power-up
-    DELAY_START = 0 #300 #Additional delay when game is started
 
     hpScale = 3 #Make the hp bars wider/narrower
 
@@ -363,8 +367,7 @@ class PlayDogfight(Game):
     def __init__(self):
         Game.__init__(self,"Dogfight!",self.worldW,self.worldH,800,600,topology='wrapped',console_lines=5)
 
-        self.before_powerup = self.DELAY_START #just wanna make this random
-        self.powerup_started = False
+        self.before_powerup = random.randint(self.MIN_DELAY, self.MAX_DELAY) #just wanna make this random
 
         self.ship_one = Ship(self, player_one=True)
         self.ship_two = Ship(self, player_one=False)
@@ -401,26 +404,15 @@ class PlayDogfight(Game):
         if event.char == 'c':
             self.ship_one.shoot()
 
-        #if event.mouse_down:
-        #    self.ship_two.shoot()
-
         '''Player Two controls: mouse to move (in get_heading) and ] to shoot'''
         if event.char == ']':
             self.ship_two.shoot()
-
-    #def handle_mouse_press(self, event):
-        '''Player Two Mouse Controls: Click to shoot NOT FUNCTIONING'''
-        #if self.mouse_down:
-        #    self.ship_two.shoot()
 
     def update(self):
         # Are we waiting to spawn power-ups?
         if self.before_powerup > 0:
             self.before_powerup -= 1
-        elif self.powerup_started == False:
-            self.powerup_started = True
-            self.before_powerup = random.randint(self.MIN_DELAY, self.MAX_DELAY)
-        else:
+        elif self.ship_one.hp != 0 and self.ship_two.hp != 0: #Don't spawn powerups if one player is dead
             spawnChoice = random.randint(1, 3)
             if spawnChoice == 1:
                 ReverseLaser(self)
