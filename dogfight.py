@@ -245,9 +245,8 @@ class Ship(Shootable):
     def slow_down(self):
         self.velocity = self.velocity * (1 - self.DRAG)**2 #Apply a stronger drag to let players slow down
 
-    def shoot(self): #The check for whether the player can shoot/resetting shotTimer is seperated from them actually shooting so that certain powerups let the player shoot multiple times without checks
-        '''If need be, we can add self.player_one to the variables given to photon and then add code to it so that photons don't hit the player that created them '''
-        if self.shotTimer == 0: #Prevent shooting too frequently
+    def shoot(self): #The check for whether the player can shoot/resetting shotTimer is seperated from them actually shooting so that multishot lets the player shoot multiple times without checks
+        if self.shotTimer == 0 and self.world.ship_one.hp != 0 and self.world.ship_two.hp != 0: #Prevent shooting too frequently
             self.shooting()
             self.times_multiShot = 0
             self.shotTimer = self.shootDelay
@@ -365,7 +364,7 @@ class PlayDogfight(Game):
     worldW = 60.0 #world width
     worldH = 45.0 #world height
     def __init__(self):
-        Game.__init__(self,"Dogfight!",self.worldW,self.worldH,800,600,topology='wrapped',console_lines=5)
+        Game.__init__(self,"Dogfight!",self.worldW,self.worldH,800,600,topology='wrapped',console_lines=6)
 
         self.before_powerup = random.randint(self.MIN_DELAY, self.MAX_DELAY) #just wanna make this random
 
@@ -375,6 +374,7 @@ class PlayDogfight(Game):
         self.report("Player one (red): Press a and d to turn, w to accelerate, d to deccelerate, and c to shoot.")
         self.report("Player two (blue): Mouse to move and ] to shoot.")
         self.report("Press q to quit.")
+        self.report("Shoot the diamond-shaped power-ups to collect them.")
         self.report("[" + "█" *self.ship_one.hpMax*self.hpScale + "] VS [" + "█" *self.ship_two.hpMax*self.hpScale + "]")
 
     def hpReport(self):
@@ -387,6 +387,7 @@ class PlayDogfight(Game):
         if (self.ship_two.hp == 0):
             self.report("PLAYER ONE WINS!!!")
             self.report("Press q to quit.")
+        self.report()
         self.report()
 
     def handle_keypress(self,event):
