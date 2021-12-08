@@ -45,7 +45,7 @@ class Shootable(MovingBody):
         MovingBody.__init__(self, position0, velocity0, world)
 
     def is_hit_by(self, photon):
-        if photon.player_one == self.player_one: #Players can't shoot themselves
+        if photon.player_one == self.player_one and self.is_powerup == False: #Players can't shoot themselves
             return False
         return ((self.position - photon.position).magnitude() < self.radius)
 
@@ -59,7 +59,7 @@ class Shootable(MovingBody):
             if self.is_powerup == False:
                 self.world.hpReport()
             if self.hp > 0: #If the shot doesn't kill, create some shrapnel (embers for ships, nothing for asteroids since they only have 1 hp)
-                for x in range((self.hpMax - self.hp) * 2): #Produce more shrapnel as health decreases, always making at least one
+                for x in range(self.hpMax - self.hp): #Produce more shrapnel as health decreases, always making at least one
                     self.SHRAPNEL_CLASS(self.position,self.world)
             else:
                 if self.SHRAPNEL_CLASS == None:
@@ -120,6 +120,20 @@ class Photon(MovingBody):
             return "#ffaaa1"
         return "#93c5fc"
 
+    def shape(self):
+        if self.player_one:
+            p1 = self.position + Vector2D( 0, 0.4)
+            p2 = self.position + Vector2D(-0.4, 0)
+            p3 = self.position + Vector2D(0,-0.4)
+            p4 = self.position + Vector2D( 0.4,0)
+            return [p1,p2,p3,p4]
+        else:
+            p1 = self.position + Vector2D( 0.125, 0.125)
+            p2 = self.position + Vector2D(-0.125, 0.125)
+            p3 = self.position + Vector2D(-0.125,-0.125)
+            p4 = self.position + Vector2D( 0.125,-0.125)
+            return [p1,p2,p3,p4]
+
     def update(self):
         MovingBody.update(self)
         self.age += 1
@@ -137,11 +151,10 @@ class Photon(MovingBody):
 
 class Ship(Shootable):
     #Shootable variables
-    hpMax = 7 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
+    hpMax = 15 #Max health. Getting shot removes 1 health. Players die when they are BELOW 0 health
     SHRAPNEL_CLASS  = Ember
     SHRAPNEL_PIECES = hpMax * 2 + 3 #Amount of shrapnel on kill is proportional to max health + a little extra
     colorFrames = 10 #How long player color is changed after a shot.
-    shootDelay = 20 #Delay between shots
 
     #MovingBody variables
     START_X   = 18
@@ -150,7 +163,7 @@ class Ship(Shootable):
     #Ship-exclusive variables
     #Turning Variables. Once we decide on keyboard movement these variables can be cleaned up
     TURNS_IN_360 = 20 #Currently Unused
-    TURN_IMPULSE = 4 #How many impulse frames are added/subtracted for a turn input
+    TURN_IMPULSE = 6 #How many impulse frames are added/subtracted for a turn input
     MAX_TURN = TURN_IMPULSE #Used, but redundant.
     TURN_MULTIPLIER = 4 #Used in determining how many degrees the ship should actually turn
     TURN_THRESHOLD = 6 #Unused
@@ -159,12 +172,17 @@ class Ship(Shootable):
     ACCELERATION   = 0.05
     MAX_SPEED      = 2
     DRAG           = 0.05 #Amount of drag applied to a player who isn't inputting anything.
-    SCALE = float(3) #Scale ship size
 
     def __init__(self, world, player_one):
         self.player_one = player_one
         self.shotTimer = 120 #Players can shoot two seconds after spawning
+        self.shootDelay = 20 #Delay between shots
+        if not self.player_one:
+            self.hpMax = 5
         self.hp = self.hpMax
+        self.SCALE = float(3) #Scale ship size
+        if not self.player_one:
+            self.SCALE = self.SCALE * 2.0/3.0
         xoffset = -self.START_X if player_one else  self.START_X
         yoffset =  self.START_Y if player_one else -self.START_Y
         position0    = Point2D(xoffset, yoffset)
@@ -178,7 +196,6 @@ class Ship(Shootable):
 
         '''Power-up variables'''
         self.has_reverseShot = False
-        self.has_speedBoost = False
         self.has_Shield = False
         self.multiShot = 0 #Number of times the player will multishot
         self.times_multiShot = 0 #Counter to make sure that the player is multishotting the correct num of times
@@ -194,7 +211,7 @@ class Ship(Shootable):
             return "#2888ee"
 
     def get_heading(self):
-        if self.player_one == True:
+        if self.player_one:
             angle = self.angle * math.pi / 180.0
             return Vector2D(math.cos(angle), math.sin(angle))
         else:
@@ -213,13 +230,13 @@ class Ship(Shootable):
         #self.angle += 360.0 / self.TURNS_IN_360
         if self.lrImpulse < 0: #Cancels turn in opposite direction
             self.lrImpulse = 0
-        if self.lrImpulse < self.MAX_TURN: #Adds impulse if you aren't over the max impulse
+        elif self.lrImpulse < self.MAX_TURN: #Adds impulse if you aren't over the max impulse
             self.lrImpulse += self.TURN_IMPULSE
     def turn_right(self):
         #self.angle -= 360.0 / self.TURNS_IN_360
         if self.lrImpulse > 0:
             self.lrImpulse = 0
-        if self.lrImpulse > -self.MAX_TURN:
+        elif self.lrImpulse > -self.MAX_TURN:
             self.lrImpulse -= self.TURN_IMPULSE
 
     def speed_up(self):
@@ -240,6 +257,8 @@ class Ship(Shootable):
             Photon(self, self.world, self.player_one, True)
 
     def update(self):
+        if (float(self.hp) * 0.4 <= float(self.hpMax)):
+            self.shootDelay = 10
         if self.shotTimer > 0:
             self.shotTimer -= 1
         if self.multiShot > 0 and self.shotTimer == self.shootDelay - 4 *(self.times_multiShot+1) and self.times_multiShot < self.multiShot:
@@ -262,21 +281,12 @@ class Ship(Shootable):
             self.lrImpulse -= 1
         elif self.lrImpulse < 0:
             self.lrImpulse += 1
-
         self.angle += self.lrImpulse * self.TURN_MULTIPLIER #Change in angle slows down as ship loses lrImpulse
-        '''if (self.lrImpulse**2)**0.5 <= self.TURN_THRESHOLD: #**2**0.5 makes sure that the number is always positive. Turn threshold sets a limit on how much you can turn in one frame, but still lets you have more impulse frames than the threshold.
-            self.angle += self.lrImpulse * self.TURN_MULTIPLIER
-        else:
-            self.angle += (self.lrImpulse//self.MAX_TURN) * self.TURN_THRESHOLD * self.TURN_MULTIPLIER #(self.lrImpulse//self.MAX_TURN) will either be 1 or -1 depending on if lrImpulse is positive or negative '''
 
         '''Moving forward/Backwards:'''
-        if self.has_speedBoost:
-            speedboost = 2.0
-        else:
-            speedboost = 1.0
         if self.impulse > 0:
             self.impulse -= 1
-            return self.get_heading() * self.ACCELERATION * speedboost * self.mBungee
+            return self.get_heading() * self.ACCELERATION * self.mBungee
         else:
             #return -self.velocity * self.DRAG * 2**-1 #if not accelerating, slow down ships equal to drag.
             return Vector2D(0.0,0.0)
@@ -288,16 +298,13 @@ class Ship(Shootable):
             self.slow_down()
 
 class PowerUp(Shootable):
-    SCALE = 1 #size
+    SCALE = 1.25
     is_powerup = True
     COLOR = "#ffffff"
 
     #Shootable variables included to prevent errors within Shootable functions
     SHRAPNEL_CLASS  = Ember
     SHRAPNEL_PIECES = 2
-    colorFrames = 0
-    shootDelay = 0
-    shotTimer = 0
     hp = 1
 
     def __init__(self, world):
@@ -327,14 +334,6 @@ class ReverseLaser(PowerUp):
         else:
             self.world.ship_two.has_reverseShot = True
         super().explode()
-class SpeedBoost(PowerUp):
-    COLOR = "#f9e79f"
-    def explode(self):
-        if self.player_one:
-            self.world.ship_one.has_speedBoostShot = True
-        else:
-            self.world.ship_two.has_speedBoostShot = True
-        super().explode()
 class Shield(PowerUp):
     COLOR = "#e5e7e9"
     def explode(self):
@@ -344,7 +343,7 @@ class Shield(PowerUp):
             self.world.ship_two.has_Shield = True
         super().explode()
 class MultiShot(PowerUp):
-    COLOR = "#bb8fce"
+    COLOR = "#ad4ad7"
     def explode(self):
         if self.player_one:
             self.world.ship_one.multiShot += 1
@@ -353,8 +352,8 @@ class MultiShot(PowerUp):
         super().explode()
 
 class PlayDogfight(Game):
-    MIN_DELAY = 180 #minimum delay before spawning a power-up
-    MAX_DELAY = 800 #maximum delay before spawning a power-up
+    MIN_DELAY = 90 #minimum delay before spawning a power-up
+    MAX_DELAY = 400 #maximum delay before spawning a power-up
     DELAY_START = 0 #300 #Additional delay when game is started
 
     hpScale = 3 #Make the hp bars wider/narrower
@@ -371,9 +370,9 @@ class PlayDogfight(Game):
         self.ship_two = Ship(self, player_one=False)
 
         self.report("Player one (red): Press a and d to turn, w to accelerate, d to deccelerate, and c to shoot.")
-        self.report("Player two (blue): Mouse to move and \ to shoot.")
+        self.report("Player two (blue): Mouse to move and ] to shoot.")
         self.report("Press q to quit.")
-        self.report("[" + "█" *self.ship_one.hpMax*self.hpScale + "] VS [" + "█" *self.ship_one.hpMax*self.hpScale + "]")
+        self.report("[" + "█" *self.ship_one.hpMax*self.hpScale + "] VS [" + "█" *self.ship_two.hpMax*self.hpScale + "]")
 
     def hpReport(self):
         self.report()
@@ -381,8 +380,10 @@ class PlayDogfight(Game):
         self.report("[" + " " *(self.ship_one.hpMax - self.ship_one.hp)*self.hpScale + "█" *self.ship_one.hp*self.hpScale + "] VS [" + "█" *self.ship_two.hp*self.hpScale + " " *(self.ship_two.hpMax - self.ship_two.hp)*self.hpScale + "]")
         if (self.ship_one.hp == 0):
             self.report("PLAYER TWO WINS!!!")
+            self.report("Press q to quit.")
         if (self.ship_two.hp == 0):
             self.report("PLAYER ONE WINS!!!")
+            self.report("Press q to quit.")
         self.report()
 
     def handle_keypress(self,event):
@@ -400,14 +401,17 @@ class PlayDogfight(Game):
         if event.char == 'c':
             self.ship_one.shoot()
 
-        '''Player Two Mouse Controls: Click to shoot NOT FUNCTIONING
-        Game.handle_mouse_press(self, event)
-        if self.mouse_down:
-            self.ship_two.shoot()'''
+        #if event.mouse_down:
+        #    self.ship_two.shoot()
 
         '''Player Two controls: mouse to move (in get_heading) and ] to shoot'''
         if event.char == ']':
             self.ship_two.shoot()
+
+    #def handle_mouse_press(self, event):
+        '''Player Two Mouse Controls: Click to shoot NOT FUNCTIONING'''
+        #if self.mouse_down:
+        #    self.ship_two.shoot()
 
     def update(self):
         # Are we waiting to spawn power-ups?
@@ -417,14 +421,12 @@ class PlayDogfight(Game):
             self.powerup_started = True
             self.before_powerup = random.randint(self.MIN_DELAY, self.MAX_DELAY)
         else:
-            spawnChoice = random.randint(1, 4)
+            spawnChoice = random.randint(1, 3)
             if spawnChoice == 1:
                 ReverseLaser(self)
             if spawnChoice == 2:
-                SpeedBoost(self)
-            if spawnChoice == 3:
                 MultiShot(self)
-            if spawnChoice == 4:
+            if spawnChoice == 3:
                 Shield(self)
             self.before_powerup = random.randint(self.MIN_DELAY, self.MAX_DELAY)
 
