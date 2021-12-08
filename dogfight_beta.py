@@ -149,8 +149,8 @@ class Ship(Shootable):
     shootDelay = 20 #Delay between shots
 
     #MovingBody variables
-    START_X   = 5
-    START_Y   = 5
+    START_X   = 18
+    START_Y   = 10
 
     #Ship-exclusive variables
     #Turning Variables. Once we decide on keyboard movement these variables can be cleaned up
@@ -376,7 +376,7 @@ class PlayDogfight(Game):
         self.ship_two = Ship(self, player_one=False)
 
         self.report("Player one (red): Press a and d to turn, w to accelerate, d to deccelerate, and c to shoot.")
-        self.report("Player two (blue): Mouse to move and / to shoot.")
+        self.report("Player two (blue): Mouse to move and \ to shoot.")
         self.report("Press q to quit.")
         self.report("[" + "█" *self.ship_one.hpMax*self.hpScale + "] VS [" + "█" *self.ship_one.hpMax*self.hpScale + "]")
 
@@ -410,8 +410,8 @@ class PlayDogfight(Game):
         if self.mouse_down:
             self.ship_two.shoot()'''
 
-        '''Player Two controls: pl;' + / to shoot'''
-        if event.char == '/':
+        '''Player Two controls: pl;' + \ to shoot'''
+        if event.char == '\':
             self.ship_two.shoot()
         '''if event.char == 'p':
             self.ship_two.speed_up()
